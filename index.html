@@ -14,6 +14,7 @@
             overflow: hidden;
             background-color: #0a0a1a;
             color: #00fffc;
+            touch-action: manipulation;
         }
         
         #gameCanvas {
@@ -161,6 +162,27 @@
             border: 2px solid #00fffc;
             box-shadow: 0 0 15px #00fffc;
         }
+        
+        /* Nickname input */
+        .nickname-input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00fffc;
+            color: #00fffc;
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 15px;
+            font-family: 'Orbitron', sans-serif;
+            box-shadow: 0 0 5px #00fffc;
+        }
+        
+        .nickname-input::placeholder {
+            color: rgba(0, 255, 252, 0.5);
+        }
+        
+        .nickname-input:focus {
+            outline: none;
+            box-shadow: 0 0 10px #00fffc;
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen bg-black">
@@ -189,6 +211,12 @@
         <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70">
             <div class="text-center p-6 neon-border bg-black bg-opacity-90 max-w-md w-full">
                 <h2 class="text-3xl font-bold mb-4 cyberpunk-text">SYSTEM READY</h2>
+                
+                <!-- Nickname Input -->
+                <div class="mb-4">
+                    <input type="text" id="nicknameInput" class="nickname-input" placeholder="ENTER PILOT NAME" maxlength="12" value="CyberPilot">
+                    <p class="text-xs cyberpunk-text mt-1">Max 12 characters</p>
+                </div>
                 
                 <div class="mb-6">
                     <p class="cyberpunk-text mb-2">SELECT DIFFICULTY:</p>
@@ -232,8 +260,13 @@
                 <h2 class="text-3xl font-bold mb-2 cyberpunk-text glitch" data-text="SYSTEM FAILURE">SYSTEM FAILURE</h2>
                 <p class="text-xl mb-4 cyberpunk-text">SCORE: <span id="finalScore" class="text-pink-500">0</span></p>
                 <p class="mb-6 cyberpunk-text">HIGH SCORE: <span id="highScore" class="text-green-400">0</span></p>
-                <button id="restartButton" class="neon-button px-6 py-2 rounded-md font-bold cyberpunk-text w-full">
+                
+                <button id="restartButton" class="neon-button px-6 py-2 rounded-md font-bold cyberpunk-text w-full mt-4">
                     <i class="fas fa-redo mr-2"></i> REBOOT
+                </button>
+                
+                <button id="exitToMenuBtn" class="mt-4 neon-button px-6 py-2 rounded-md font-bold cyberpunk-text w-full">
+                    <i class="fas fa-home mr-2"></i> MAIN MENU
                 </button>
             </div>
         </div>
@@ -264,11 +297,13 @@
             const gameOverScreen = document.getElementById('gameOverScreen');
             const startButton = document.getElementById('startButton');
             const restartButton = document.getElementById('restartButton');
+            const exitToMenuBtn = document.getElementById('exitToMenuBtn');
             const scoreDisplay = document.getElementById('scoreDisplay');
             const finalScore = document.getElementById('finalScore');
             const highScoreDisplay = document.getElementById('highScoreDisplay');
             const highScore = document.getElementById('highScore');
             const terminalOutput = document.getElementById('terminal-output');
+            const nicknameInput = document.getElementById('nicknameInput');
             
             // Difficulty buttons
             const easyBtn = document.getElementById('easyBtn');
@@ -284,8 +319,15 @@
             let gameRunning = false;
             let score = 0;
             let highScoreValue = localStorage.getItem('cyberflapHighScore') || 0;
+            let playerName = localStorage.getItem('cyberflapPlayerName') || "CyberPilot";
             highScoreDisplay.textContent = highScoreValue;
             highScore.textContent = highScoreValue;
+            nicknameInput.value = playerName;
+            
+            // Control variables
+            let jumpPressed = false;
+            let lastJumpTime = 0;
+            const jumpCooldown = 200; // milliseconds
             
             // Difficulty settings
             let difficulty = 'easy';
@@ -323,7 +365,8 @@
                 gravity: difficultySettings[difficulty].gravity,
                 jumpForce: -10,
                 color: '#00fffc',
-                design: 1
+                design: 1,
+                rotation: 0
             };
             
             // Pipe properties
@@ -359,6 +402,13 @@
             // Event listeners
             startButton.addEventListener('click', startGame);
             restartButton.addEventListener('click', startGame);
+            exitToMenuBtn.addEventListener('click', exitToMainMenu);
+            
+            // Nickname input
+            nicknameInput.addEventListener('input', () => {
+                playerName = nicknameInput.value.trim() || "CyberPilot";
+                localStorage.setItem('cyberflapPlayerName', playerName);
+            });
             
             // Difficulty selection
             easyBtn.addEventListener('click', () => {
@@ -413,20 +463,49 @@
                 terminalOutput.textContent = "> TANK BIRD SELECTED";
             });
             
+            // Improved input handling
             document.addEventListener('keydown', (e) => {
-                if ((e.code === 'Space' || e.key === ' ') && !gameRunning) {
-                    startGame();
-                }
-                if (e.code === 'Space' && gameRunning) {
-                    birdJump();
+                if (e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    
+                    if (!gameRunning && !startScreen.classList.contains('hidden')) {
+                        startGame();
+                    } else if (gameRunning) {
+                        const now = Date.now();
+                        if (now - lastJumpTime > jumpCooldown) {
+                            jumpPressed = true;
+                            lastJumpTime = now;
+                        }
+                    }
                 }
             });
             
-            canvas.addEventListener('click', () => {
-                if (gameRunning) {
-                    birdJump();
+            document.addEventListener('keyup', (e) => {
+                if (e.code === 'Space' || e.key === ' ' || e.key === 'ArrowUp') {
+                    jumpPressed = false;
                 }
             });
+            
+            // Touch and mouse controls
+            canvas.addEventListener('mousedown', handleTap);
+            canvas.addEventListener('touchstart', handleTap);
+            
+            function handleTap(e) {
+                e.preventDefault();
+                
+                if (!gameRunning && !startScreen.classList.contains('hidden')) {
+                    startGame();
+                } else if (gameRunning) {
+                    const now = Date.now();
+                    if (now - lastJumpTime > jumpCooldown) {
+                        jumpPressed = true;
+                        lastJumpTime = now;
+                    }
+                }
+            }
+            
+            document.addEventListener('mouseup', () => jumpPressed = false);
+            document.addEventListener('touchend', () => jumpPressed = false);
             
             // Game functions
             function updateDifficultySettings() {
@@ -456,6 +535,7 @@
                     bird.width = 30;
                     bird.height = 24;
                     bird.color = '#00fffc';
+                    bird.jumpForce = difficulty === 'hard' ? -12 : -10;
                 } else if (selectedBird === 2) { // Speed
                     bird.width = 25;
                     bird.height = 20;
@@ -470,6 +550,7 @@
                 
                 bird.y = canvas.height / 2;
                 bird.velocity = 0;
+                bird.rotation = 0;
                 
                 pipes.length = 0;
                 pipeTimer = 0;
@@ -480,11 +561,21 @@
                 terminalOutput.textContent = "> SIMULATION ACTIVE";
                 
                 // Start game loop
+                lastTime = performance.now();
                 requestAnimationFrame(gameLoop);
+            }
+            
+            function exitToMainMenu() {
+                gameRunning = false;
+                startScreen.classList.remove('hidden');
+                gameOverScreen.classList.add('hidden');
+                
+                terminalOutput.textContent = "> SIMULATION PAUSED";
             }
             
             function birdJump() {
                 bird.velocity = bird.jumpForce;
+                bird.rotation = -20; // Tilt up when jumping
                 
                 // Create jump effect with different colors based on bird
                 let particleColor;
@@ -623,18 +714,6 @@
                     localStorage.setItem('cyberflapHighScore', highScoreValue);
                     highScoreDisplay.textContent = highScoreValue;
                     highScore.textContent = highScoreValue;
-                    
-                    // High score effect
-                    for (let i = 0; i < 50; i++) {
-                        createParticle(
-                            canvas.width / 2,
-                            canvas.height / 2,
-                            Math.random() * 360,
-                            Math.random() * 4 + 2,
-                            '#00fffc',
-                            60
-                        );
-                    }
                 }
                 
                 finalScore.textContent = score;
@@ -724,6 +803,10 @@
             function drawBird() {
                 ctx.save();
                 
+                // Move to bird center for rotation
+                ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+                ctx.rotate(bird.rotation * Math.PI / 180);
+                
                 // Bird glow
                 ctx.shadowColor = bird.color;
                 ctx.shadowBlur = 15;
@@ -734,8 +817,8 @@
                     ctx.fillStyle = bird.color;
                     ctx.beginPath();
                     ctx.ellipse(
-                        bird.x + bird.width / 2,
-                        bird.y + bird.height / 2,
+                        0,
+                        0,
                         bird.width / 2,
                         bird.height / 2,
                         0,
@@ -748,8 +831,8 @@
                     ctx.fillStyle = '#000000';
                     ctx.beginPath();
                     ctx.arc(
-                        bird.x + bird.width / 2 + 5,
-                        bird.y + bird.height / 2 - 2,
+                        5,
+                        -2,
                         3,
                         0,
                         Math.PI * 2
@@ -759,14 +842,14 @@
                     // Bird wing (animated with velocity)
                     ctx.fillStyle = '#00b4ff';
                     ctx.beginPath();
-                    ctx.moveTo(bird.x + bird.width / 2, bird.y + bird.height / 2);
+                    ctx.moveTo(0, 0);
                     ctx.lineTo(
-                        bird.x + bird.width / 2 - 15,
-                        bird.y + bird.height / 2 + 10 + Math.sin(Date.now() / 100) * 5
+                        -15,
+                        10 + Math.sin(Date.now() / 100) * 5
                     );
                     ctx.lineTo(
-                        bird.x + bird.width / 2 - 5,
-                        bird.y + bird.height / 2 + 5
+                        -5,
+                        5
                     );
                     ctx.closePath();
                     ctx.fill();
@@ -774,9 +857,9 @@
                     // Bird beak
                     ctx.fillStyle = '#ff6600';
                     ctx.beginPath();
-                    ctx.moveTo(bird.x + bird.width, bird.y + bird.height / 2);
-                    ctx.lineTo(bird.x + bird.width + 8, bird.y + bird.height / 2 - 3);
-                    ctx.lineTo(bird.x + bird.width + 8, bird.y + bird.height / 2 + 3);
+                    ctx.moveTo(bird.width / 2, 0);
+                    ctx.lineTo(bird.width / 2 + 8, -3);
+                    ctx.lineTo(bird.width / 2 + 8, 3);
                     ctx.closePath();
                     ctx.fill();
                 } 
@@ -784,9 +867,9 @@
                     // Speed bird - angular design
                     ctx.fillStyle = bird.color;
                     ctx.beginPath();
-                    ctx.moveTo(bird.x, bird.y + bird.height / 2);
-                    ctx.lineTo(bird.x + bird.width, bird.y);
-                    ctx.lineTo(bird.x + bird.width, bird.y + bird.height);
+                    ctx.moveTo(-bird.width / 2, 0);
+                    ctx.lineTo(bird.width / 2, -bird.height / 2);
+                    ctx.lineTo(bird.width / 2, bird.height / 2);
                     ctx.closePath();
                     ctx.fill();
                     
@@ -794,8 +877,8 @@
                     ctx.fillStyle = '#000000';
                     ctx.beginPath();
                     ctx.arc(
-                        bird.x + bird.width - 5,
-                        bird.y + bird.height / 2 - 2,
+                        bird.width / 2 - 5,
+                        -2,
                         2,
                         0,
                         Math.PI * 2
@@ -806,8 +889,8 @@
                     ctx.fillStyle = '#ffffff';
                     ctx.beginPath();
                     ctx.arc(
-                        bird.x,
-                        bird.y + bird.height / 2,
+                        -bird.width / 2,
+                        0,
                         3,
                         0,
                         Math.PI * 2
@@ -820,8 +903,8 @@
                     // Main body
                     ctx.beginPath();
                     ctx.ellipse(
-                        bird.x + bird.width / 2,
-                        bird.y + bird.height / 2,
+                        0,
+                        0,
                         bird.width / 2,
                         bird.height / 2,
                         0,
@@ -834,8 +917,8 @@
                     ctx.fillStyle = '#3d00b3';
                     ctx.beginPath();
                     ctx.ellipse(
-                        bird.x + bird.width / 2,
-                        bird.y + bird.height / 2,
+                        0,
+                        0,
                         bird.width / 2 - 5,
                         bird.height / 2 - 5,
                         0,
@@ -848,8 +931,8 @@
                     ctx.fillStyle = '#000000';
                     ctx.beginPath();
                     ctx.arc(
-                        bird.x + bird.width / 2 + 5,
-                        bird.y + bird.height / 2 - 2,
+                        5,
+                        -2,
                         4,
                         0,
                         Math.PI * 2
@@ -860,9 +943,9 @@
                     ctx.fillStyle = '#ffffff';
                     for (let i = 0; i < 3; i++) {
                         ctx.beginPath();
-                        ctx.moveTo(bird.x + bird.width + i * 5, bird.y + bird.height / 2 - 5 + i * 5);
-                        ctx.lineTo(bird.x + bird.width + 10 + i * 5, bird.y + bird.height / 2);
-                        ctx.lineTo(bird.x + bird.width + i * 5, bird.y + bird.height / 2 + 5 - i * 5);
+                        ctx.moveTo(bird.width / 2 + i * 5, -5 + i * 5);
+                        ctx.lineTo(bird.width / 2 + 10 + i * 5, 0);
+                        ctx.lineTo(bird.width / 2 + i * 5, 5 - i * 5);
                         ctx.fill();
                     }
                 }
@@ -1013,9 +1096,18 @@
                 // Clear canvas
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
+                // Handle jump input
+                if (jumpPressed) {
+                    birdJump();
+                    jumpPressed = false;
+                }
+                
                 // Update game state
                 bird.velocity += bird.gravity;
                 bird.y += bird.velocity;
+                
+                // Update bird rotation based on velocity (like original Flappy Bird)
+                bird.rotation = Math.min(Math.max(bird.velocity * 3, -30), 90);
                 
                 updatePipes();
                 updateParticles();
