@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberFlap - Neon Bird Adventure</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap');
+        
+        body {
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            background-color: #0a0a1a;
+            color: #00fffc;
+        }
+        
+        #gameCanvas {
+            background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e);
+            box-shadow: 0 0 20px #5e00ff;
+            border: 2px solid #00fffc;
+        }
+        
+        .cyberpunk-text {
+            text-shadow: 0 0 5px #00fffc, 0 0 10px #00fffc;
+            letter-spacing: 2px;
+        }
+        
+        .neon-border {
+            border: 2px solid #00fffc;
+            box-shadow: 0 0 10px #00fffc, inset 0 0 10px #00fffc;
+        }
+        
+        .neon-button {
+            background: transparent;
+            color: #00fffc;
+            border: 2px solid #00fffc;
+            box-shadow: 0 0 10px #00fffc;
+            transition: all 0.3s;
+        }
+        
+        .neon-button:hover {
+            background: #00fffc;
+            color: #0a0a1a;
+            box-shadow: 0 0 20px #00fffc;
+            text-shadow: none;
+        }
+        
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+        
+        .scanline {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(0, 255, 252, 0.1) 0%,
+                rgba(0, 255, 252, 0) 10%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            animation: scanline 8s linear infinite;
+            z-index: 10;
+        }
+        
+        @keyframes scanline {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(100vh); }
+        }
+        
+        .glitch {
+            position: relative;
+        }
+        
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+        }
+        
+        .glitch::before {
+            color: #ff00ff;
+            z-index: -1;
+            animation: glitch-effect 3s infinite;
+        }
+        
+        .glitch::after {
+            color: #00fffc;
+            z-index: -2;
+            animation: glitch-effect 2s infinite reverse;
+        }
+        
+        @keyframes glitch-effect {
+            0% { transform: translate(0); }
+            20% { transform: translate(-3px, 3px); }
+            40% { transform: translate(-3px, -3px); }
+            60% { transform: translate(3px, 3px); }
+            80% { transform: translate(3px, -3px); }
+            100% { transform: translate(0); }
+        }
+        
+        .terminal {
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00fffc;
+            box-shadow: 0 0 15px #00fffc;
+            color: #00fffc;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .terminal::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 15px;
+            background: linear-gradient(to right, #ff00ff, #00fffc, #ff00ff);
+        }
+        
+        .difficulty-btn {
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        
+        .difficulty-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .difficulty-btn.active {
+            border-color: #00fffc;
+            box-shadow: 0 0 10px #00fffc;
+        }
+        
+        .bird-selector {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .bird-selector:hover {
+            transform: scale(1.1);
+        }
+        
+        .bird-selector.active {
+            border: 2px solid #00fffc;
+            box-shadow: 0 0 15px #00fffc;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-black">
+    <div class="scanline"></div>
+    
+    <div class="absolute top-0 left-0 p-4">
+        <div class="terminal w-64">
+            <div class="flex items-center mb-2">
+                <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <div class="mb-2">> INITIALIZING CYBERFLAP v3.0</div>
+            <div class="mb-2">> LOADING NEON ASSETS...</div>
+            <div class="mb-2">> SYSTEM CHECK COMPLETE</div>
+            <div id="terminal-output">> READY FOR USER INPUT</div>
+        </div>
+    </div>
+    
+    <h1 class="text-5xl font-bold mb-2 cyberpunk-text glitch" data-text="CYBERFLAP">CYBERFLAP</h1>
+    <p class="text-xl mb-4 cyberpunk-text">Neon Bird Simulation</p>
+    
+    <div class="relative">
+        <canvas id="gameCanvas" width="400" height="600" class="neon-border"></canvas>
+        
+        <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70">
+            <div class="text-center p-6 neon-border bg-black bg-opacity-90 max-w-md w-full">
+                <h2 class="text-3xl font-bold mb-4 cyberpunk-text">SYSTEM READY</h2>
+                
+                <div class="mb-6">
+                    <p class="cyberpunk-text mb-2">SELECT DIFFICULTY:</p>
+                    <div class="flex justify-center space-x-4">
+                        <button id="easyBtn" class="difficulty-btn px-4 py-2 rounded-md bg-green-900 text-green-300 active">
+                            EASY
+                        </button>
+                        <button id="mediumBtn" class="difficulty-btn px-4 py-2 rounded-md bg-yellow-900 text-yellow-300">
+                            MEDIUM
+                        </button>
+                        <button id="hardBtn" class="difficulty-btn px-4 py-2 rounded-md bg-red-900 text-red-300">
+                            HARD
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="cyberpunk-text mb-2">SELECT BIRD:</p>
+                    <div class="flex justify-center space-x-4">
+                        <div id="bird1" class="bird-selector active" data-bird="1">
+                            <div class="w-8 h-8 rounded-full bg-blue-500"></div>
+                        </div>
+                        <div id="bird2" class="bird-selector" data-bird="2">
+                            <div class="w-8 h-8 rounded-full bg-purple-500"></div>
+                        </div>
+                        <div id="bird3" class="bird-selector" data-bird="3">
+                            <div class="w-8 h-8 rounded-full bg-pink-500"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="mb-6 cyberpunk-text">Press SPACE or CLICK to initiate</p>
+                <button id="startButton" class="neon-button px-6 py-2 rounded-md font-bold cyberpunk-text w-full">
+                    <i class="fas fa-power-off mr-2"></i> ACTIVATE
+                </button>
+            </div>
+        </div>
+        
+        <div id="gameOverScreen" class="absolute inset-0 hidden flex-col items-center justify-center bg-black bg-opacity-70">
+            <div class="text-center p-6 neon-border bg-black bg-opacity-90 max-w-md w-full">
+                <h2 class="text-3xl font-bold mb-2 cyberpunk-text glitch" data-text="SYSTEM FAILURE">SYSTEM FAILURE</h2>
+                <p class="text-xl mb-4 cyberpunk-text">SCORE: <span id="finalScore" class="text-pink-500">0</span></p>
+                <p class="mb-6 cyberpunk-text">HIGH SCORE: <span id="highScore" class="text-green-400">0</span></p>
+                <button id="restartButton" class="neon-button px-6 py-2 rounded-md font-bold cyberpunk-text w-full">
+                    <i class="fas fa-redo mr-2"></i> REBOOT
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-6 flex items-center">
+        <div class="mr-8 text-center">
+            <p class="text-sm cyberpunk-text">CURRENT SCORE</p>
+            <p id="scoreDisplay" class="text-2xl font-bold text-pink-500">0</p>
+        </div>
+        <div class="text-center">
+            <p class="text-sm cyberpunk-text">HIGH SCORE</p>
+            <p id="highScoreDisplay" class="text-2xl font-bold text-green-400">0</p>
+        </div>
+    </div>
+    
+    <div class="absolute bottom-4 right-4 text-xs cyberpunk-text">
+        <p>SYSTEM v3.0.5</p>
+        <p>NEON ENGINE ONLINE</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Game elements
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const startScreen = document.getElementById('startScreen');
+            const gameOverScreen = document.getElementById('gameOverScreen');
+            const startButton = document.getElementById('startButton');
+            const restartButton = document.getElementById('restartButton');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const finalScore = document.getElementById('finalScore');
+            const highScoreDisplay = document.getElementById('highScoreDisplay');
+            const highScore = document.getElementById('highScore');
+            const terminalOutput = document.getElementById('terminal-output');
+            
+            // Difficulty buttons
+            const easyBtn = document.getElementById('easyBtn');
+            const mediumBtn = document.getElementById('mediumBtn');
+            const hardBtn = document.getElementById('hardBtn');
+            
+            // Bird selection
+            const bird1 = document.getElementById('bird1');
+            const bird2 = document.getElementById('bird2');
+            const bird3 = document.getElementById('bird3');
+            
+            // Game variables
+            let gameRunning = false;
+            let score = 0;
+            let highScoreValue = localStorage.getItem('cyberflapHighScore') || 0;
+            highScoreDisplay.textContent = highScoreValue;
+            highScore.textContent = highScoreValue;
+            
+            // Difficulty settings
+            let difficulty = 'easy';
+            const difficultySettings = {
+                easy: {
+                    pipeGap: 180,
+                    pipeSpeed: 2,
+                    gravity: 0.4,
+                    pipeInterval: 1800
+                },
+                medium: {
+                    pipeGap: 150,
+                    pipeSpeed: 3,
+                    gravity: 0.5,
+                    pipeInterval: 1500
+                },
+                hard: {
+                    pipeGap: 120,
+                    pipeSpeed: 4,
+                    gravity: 0.6,
+                    pipeInterval: 1200
+                }
+            };
+            
+            // Selected bird design
+            let selectedBird = 1;
+            
+            // Bird properties
+            const bird = {
+                x: 100,
+                y: canvas.height / 2,
+                width: 30,
+                height: 24,
+                velocity: 0,
+                gravity: difficultySettings[difficulty].gravity,
+                jumpForce: -10,
+                color: '#00fffc',
+                design: 1
+            };
+            
+            // Pipe properties
+            const pipes = [];
+            const pipeWidth = 60;
+            let pipeGap = difficultySettings[difficulty].pipeGap;
+            let pipeSpeed = difficultySettings[difficulty].pipeSpeed;
+            let pipeTimer = 0;
+            let pipeInterval = difficultySettings[difficulty].pipeInterval;
+            
+            // Background elements
+            const stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 1,
+                    speed: Math.random() * 1 + 0.5,
+                    alpha: Math.random() * 0.5 + 0.5
+                });
+            }
+            
+            const buildings = [];
+            for (let i = 0; i < 10; i++) {
+                buildings.push({
+                    x: Math.random() * canvas.width,
+                    width: Math.random() * 100 + 50,
+                    height: Math.random() * 200 + 100,
+                    color: `hsl(${Math.random() * 60 + 240}, 100%, ${Math.random() * 30 + 30}%)`
+                });
+            }
+            
+            // Event listeners
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', startGame);
+            
+            // Difficulty selection
+            easyBtn.addEventListener('click', () => {
+                difficulty = 'easy';
+                updateDifficultySettings();
+                easyBtn.classList.add('active');
+                mediumBtn.classList.remove('active');
+                hardBtn.classList.remove('active');
+                terminalOutput.textContent = "> DIFFICULTY SET TO EASY";
+            });
+            
+            mediumBtn.addEventListener('click', () => {
+                difficulty = 'medium';
+                updateDifficultySettings();
+                easyBtn.classList.remove('active');
+                mediumBtn.classList.add('active');
+                hardBtn.classList.remove('active');
+                terminalOutput.textContent = "> DIFFICULTY SET TO MEDIUM";
+            });
+            
+            hardBtn.addEventListener('click', () => {
+                difficulty = 'hard';
+                updateDifficultySettings();
+                easyBtn.classList.remove('active');
+                mediumBtn.classList.remove('active');
+                hardBtn.classList.add('active');
+                terminalOutput.textContent = "> DIFFICULTY SET TO HARD";
+            });
+            
+            // Bird selection
+            bird1.addEventListener('click', () => {
+                selectedBird = 1;
+                bird1.classList.add('active');
+                bird2.classList.remove('active');
+                bird3.classList.remove('active');
+                terminalOutput.textContent = "> STANDARD BIRD SELECTED";
+            });
+            
+            bird2.addEventListener('click', () => {
+                selectedBird = 2;
+                bird1.classList.remove('active');
+                bird2.classList.add('active');
+                bird3.classList.remove('active');
+                terminalOutput.textContent = "> SPEED BIRD SELECTED";
+            });
+            
+            bird3.addEventListener('click', () => {
+                selectedBird = 3;
+                bird1.classList.remove('active');
+                bird2.classList.remove('active');
+                bird3.classList.add('active');
+                terminalOutput.textContent = "> TANK BIRD SELECTED";
+            });
+            
+            document.addEventListener('keydown', (e) => {
+                if ((e.code === 'Space' || e.key === ' ') && !gameRunning) {
+                    startGame();
+                }
+                if (e.code === 'Space' && gameRunning) {
+                    birdJump();
+                }
+            });
+            
+            canvas.addEventListener('click', () => {
+                if (gameRunning) {
+                    birdJump();
+                }
+            });
+            
+            // Game functions
+            function updateDifficultySettings() {
+                bird.gravity = difficultySettings[difficulty].gravity;
+                pipeGap = difficultySettings[difficulty].pipeGap;
+                pipeSpeed = difficultySettings[difficulty].pipeSpeed;
+                pipeInterval = difficultySettings[difficulty].pipeInterval;
+                
+                // Update bird jump force based on difficulty
+                if (difficulty === 'hard') {
+                    bird.jumpForce = -12;
+                } else {
+                    bird.jumpForce = -10;
+                }
+            }
+            
+            function startGame() {
+                gameRunning = true;
+                score = 0;
+                scoreDisplay.textContent = score;
+                
+                // Update bird based on selection
+                bird.design = selectedBird;
+                
+                // Adjust bird properties based on selection
+                if (selectedBird === 1) { // Standard
+                    bird.width = 30;
+                    bird.height = 24;
+                    bird.color = '#00fffc';
+                } else if (selectedBird === 2) { // Speed
+                    bird.width = 25;
+                    bird.height = 20;
+                    bird.color = '#ff00ff';
+                    bird.jumpForce = difficulty === 'hard' ? -14 : -12;
+                } else if (selectedBird === 3) { // Tank
+                    bird.width = 40;
+                    bird.height = 32;
+                    bird.color = '#5e00ff';
+                    bird.jumpForce = difficulty === 'hard' ? -8 : -9;
+                }
+                
+                bird.y = canvas.height / 2;
+                bird.velocity = 0;
+                
+                pipes.length = 0;
+                pipeTimer = 0;
+                
+                startScreen.classList.add('hidden');
+                gameOverScreen.classList.add('hidden');
+                
+                terminalOutput.textContent = "> SIMULATION ACTIVE";
+                
+                // Start game loop
+                requestAnimationFrame(gameLoop);
+            }
+            
+            function birdJump() {
+                bird.velocity = bird.jumpForce;
+                
+                // Create jump effect with different colors based on bird
+                let particleColor;
+                if (selectedBird === 1) {
+                    particleColor = '#00fffc';
+                } else if (selectedBird === 2) {
+                    particleColor = '#ff00ff';
+                } else {
+                    particleColor = '#5e00ff';
+                }
+                
+                for (let i = 0; i < 10; i++) {
+                    createParticle(
+                        bird.x + bird.width / 2,
+                        bird.y + bird.height,
+                        Math.random() * 360,
+                        Math.random() * 2 + 1,
+                        particleColor,
+                        30
+                    );
+                }
+            }
+            
+            function createPipe() {
+                const minHeight = 50;
+                const maxHeight = canvas.height - pipeGap - minHeight;
+                const height = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
+                
+                pipes.push({
+                    x: canvas.width,
+                    height: height,
+                    passed: false
+                });
+                
+                // Create top pipe
+                pipes.push({
+                    x: canvas.width,
+                    height: height + pipeGap,
+                    isTop: true,
+                    passed: false
+                });
+            }
+            
+            function updatePipes() {
+                pipeTimer += 16; // Assuming 60fps (16ms per frame)
+                
+                if (pipeTimer >= pipeInterval) {
+                    createPipe();
+                    pipeTimer = 0;
+                }
+                
+                for (let i = 0; i < pipes.length; i++) {
+                    pipes[i].x -= pipeSpeed;
+                    
+                    // Check if bird passed the pipe
+                    if (!pipes[i].passed && pipes[i].x + pipeWidth < bird.x) {
+                        pipes[i].passed = true;
+                        if (!pipes[i].isTop) {
+                            score++;
+                            scoreDisplay.textContent = score;
+                            
+                            // Score effect
+                            for (let j = 0; j < 20; j++) {
+                                createParticle(
+                                    pipes[i].x + pipeWidth / 2,
+                                    pipes[i].height + pipeGap / 2,
+                                    Math.random() * 360,
+                                    Math.random() * 3 + 1,
+                                    '#ff00ff',
+                                    40
+                                );
+                            }
+                        }
+                    }
+                }
+                
+                // Remove pipes that are off screen
+                if (pipes.length > 0 && pipes[0].x + pipeWidth < 0) {
+                    pipes.splice(0, 2);
+                }
+            }
+            
+            function checkCollision() {
+                // Check if bird hits the ground or ceiling
+                if (bird.y + bird.height > canvas.height || bird.y < 0) {
+                    gameOver();
+                    return;
+                }
+                
+                // Check if bird hits any pipes
+                for (let i = 0; i < pipes.length; i++) {
+                    const pipe = pipes[i];
+                    
+                    if (
+                        bird.x + bird.width > pipe.x &&
+                        bird.x < pipe.x + pipeWidth &&
+                        ((!pipe.isTop && bird.y < pipe.height) || 
+                         (pipe.isTop && bird.y + bird.height > pipe.height))
+                    ) {
+                        // Tank bird can survive one hit
+                        if (selectedBird === 3) {
+                            // Remove the hit pipe pair
+                            pipes.splice(i, 2);
+                            
+                            // Create explosion effect
+                            for (let j = 0; j < 30; j++) {
+                                createParticle(
+                                    bird.x + bird.width / 2,
+                                    bird.y + bird.height / 2,
+                                    Math.random() * 360,
+                                    Math.random() * 4 + 2,
+                                    '#5e00ff',
+                                    50
+                                );
+                            }
+                            
+                            // Reduce score as penalty
+                            score = Math.max(0, score - 1);
+                            scoreDisplay.textContent = score;
+                            
+                            return;
+                        } else {
+                            gameOver();
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            function gameOver() {
+                gameRunning = false;
+                
+                // Update high score
+                if (score > highScoreValue) {
+                    highScoreValue = score;
+                    localStorage.setItem('cyberflapHighScore', highScoreValue);
+                    highScoreDisplay.textContent = highScoreValue;
+                    highScore.textContent = highScoreValue;
+                    
+                    // High score effect
+                    for (let i = 0; i < 50; i++) {
+                        createParticle(
+                            canvas.width / 2,
+                            canvas.height / 2,
+                            Math.random() * 360,
+                            Math.random() * 4 + 2,
+                            '#00fffc',
+                            60
+                        );
+                    }
+                }
+                
+                finalScore.textContent = score;
+                gameOverScreen.classList.remove('hidden');
+                
+                terminalOutput.textContent = "> SIMULATION TERMINATED";
+            }
+            
+            // Particle system for effects
+            const particles = [];
+            
+            function createParticle(x, y, angle, speed, color, life) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle * Math.PI / 180) * speed,
+                    vy: Math.sin(angle * Math.PI / 180) * speed,
+                    color: color,
+                    life: life,
+                    maxLife: life,
+                    size: Math.random() * 3 + 1
+                });
+            }
+            
+            function updateParticles() {
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life--;
+                    
+                    if (p.life <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+            }
+            
+            // Drawing functions
+            function drawBackground() {
+                // Gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#0f0c29');
+                gradient.addColorStop(0.5, '#302b63');
+                gradient.addColorStop(1, '#24243e');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw stars
+                ctx.save();
+                for (const star of stars) {
+                    ctx.globalAlpha = star.alpha;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Move stars
+                    star.y += star.speed;
+                    if (star.y > canvas.height) {
+                        star.y = 0;
+                        star.x = Math.random() * canvas.width;
+                    }
+                }
+                ctx.restore();
+                
+                // Draw distant buildings
+                for (const building of buildings) {
+                    ctx.fillStyle = building.color;
+                    ctx.fillRect(building.x, canvas.height - building.height, building.width, building.height);
+                    
+                    // Add windows
+                    ctx.fillStyle = '#00fffc';
+                    const windowSize = 5;
+                    const windowSpacing = 10;
+                    
+                    for (let y = canvas.height - building.height + 20; y < canvas.height - 10; y += windowSpacing) {
+                        for (let x = building.x + 10; x < building.x + building.width - 10; x += windowSpacing) {
+                            if (Math.random() > 0.7) { // Randomly light up windows
+                                ctx.fillRect(x, y, windowSize, windowSize);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            function drawBird() {
+                ctx.save();
+                
+                // Bird glow
+                ctx.shadowColor = bird.color;
+                ctx.shadowBlur = 15;
+                
+                // Draw different bird designs
+                if (selectedBird === 1) {
+                    // Standard bird
+                    ctx.fillStyle = bird.color;
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        bird.x + bird.width / 2,
+                        bird.y + bird.height / 2,
+                        bird.width / 2,
+                        bird.height / 2,
+                        0,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Bird eye
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(
+                        bird.x + bird.width / 2 + 5,
+                        bird.y + bird.height / 2 - 2,
+                        3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Bird wing (animated with velocity)
+                    ctx.fillStyle = '#00b4ff';
+                    ctx.beginPath();
+                    ctx.moveTo(bird.x + bird.width / 2, bird.y + bird.height / 2);
+                    ctx.lineTo(
+                        bird.x + bird.width / 2 - 15,
+                        bird.y + bird.height / 2 + 10 + Math.sin(Date.now() / 100) * 5
+                    );
+                    ctx.lineTo(
+                        bird.x + bird.width / 2 - 5,
+                        bird.y + bird.height / 2 + 5
+                    );
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Bird beak
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.moveTo(bird.x + bird.width, bird.y + bird.height / 2);
+                    ctx.lineTo(bird.x + bird.width + 8, bird.y + bird.height / 2 - 3);
+                    ctx.lineTo(bird.x + bird.width + 8, bird.y + bird.height / 2 + 3);
+                    ctx.closePath();
+                    ctx.fill();
+                } 
+                else if (selectedBird === 2) {
+                    // Speed bird - angular design
+                    ctx.fillStyle = bird.color;
+                    ctx.beginPath();
+                    ctx.moveTo(bird.x, bird.y + bird.height / 2);
+                    ctx.lineTo(bird.x + bird.width, bird.y);
+                    ctx.lineTo(bird.x + bird.width, bird.y + bird.height);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Eye
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(
+                        bird.x + bird.width - 5,
+                        bird.y + bird.height / 2 - 2,
+                        2,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Engine glow
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(
+                        bird.x,
+                        bird.y + bird.height / 2,
+                        3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                } 
+                else {
+                    // Tank bird - armored design
+                    ctx.fillStyle = bird.color;
+                    // Main body
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        bird.x + bird.width / 2,
+                        bird.y + bird.height / 2,
+                        bird.width / 2,
+                        bird.height / 2,
+                        0,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Armor plates
+                    ctx.fillStyle = '#3d00b3';
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        bird.x + bird.width / 2,
+                        bird.y + bird.height / 2,
+                        bird.width / 2 - 5,
+                        bird.height / 2 - 5,
+                        0,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Eye
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(
+                        bird.x + bird.width / 2 + 5,
+                        bird.y + bird.height / 2 - 2,
+                        4,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                    
+                    // Spikes
+                    ctx.fillStyle = '#ffffff';
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(bird.x + bird.width + i * 5, bird.y + bird.height / 2 - 5 + i * 5);
+                        ctx.lineTo(bird.x + bird.width + 10 + i * 5, bird.y + bird.height / 2);
+                        ctx.lineTo(bird.x + bird.width + i * 5, bird.y + bird.height / 2 + 5 - i * 5);
+                        ctx.fill();
+                    }
+                }
+                
+                ctx.restore();
+            }
+            
+            function drawPipes() {
+                for (const pipe of pipes) {
+                    // Pipe glow
+                    ctx.shadowColor = '#ff00ff';
+                    ctx.shadowBlur = 10;
+                    
+                    // Pipe color
+                    const gradient = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipeWidth, 0);
+                    gradient.addColorStop(0, '#5e00ff');
+                    gradient.addColorStop(1, '#ff00ff');
+                    
+                    ctx.fillStyle = gradient;
+                    
+                    if (pipe.isTop) {
+                        // Top pipe
+                        ctx.fillRect(
+                            pipe.x,
+                            pipe.height,
+                            pipeWidth,
+                            canvas.height - pipe.height
+                        );
+                        
+                        // Pipe edge
+                        ctx.fillStyle = '#00fffc';
+                        ctx.fillRect(
+                            pipe.x,
+                            pipe.height - 10,
+                            pipeWidth,
+                            10
+                        );
+                    } else {
+                        // Bottom pipe
+                        ctx.fillRect(
+                            pipe.x,
+                            0,
+                            pipeWidth,
+                            pipe.height
+                        );
+                        
+                        // Pipe edge
+                        ctx.fillStyle = '#00fffc';
+                        ctx.fillRect(
+                            pipe.x,
+                            pipe.height,
+                            pipeWidth,
+                            10
+                        );
+                    }
+                    
+                    // Reset shadow
+                    ctx.shadowBlur = 0;
+                    
+                    // Pipe details
+                    ctx.strokeStyle = '#00fffc';
+                    ctx.lineWidth = 2;
+                    
+                    if (pipe.isTop) {
+                        // Top pipe details
+                        for (let y = pipe.height + 20; y < canvas.height; y += 20) {
+                            ctx.beginPath();
+                            ctx.moveTo(pipe.x + 10, y);
+                            ctx.lineTo(pipe.x + pipeWidth - 10, y);
+                            ctx.stroke();
+                        }
+                    } else {
+                        // Bottom pipe details
+                        for (let y = 20; y < pipe.height; y += 20) {
+                            ctx.beginPath();
+                            ctx.moveTo(pipe.x + 10, y);
+                            ctx.lineTo(pipe.x + pipeWidth - 10, y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+            
+            function drawParticles() {
+                for (const p of particles) {
+                    const alpha = p.life / p.maxLife;
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+            
+            function drawHUD() {
+                // Score display
+                ctx.font = '20px Orbitron';
+                ctx.fillStyle = '#00fffc';
+                ctx.textAlign = 'left';
+                ctx.fillText(`SCORE: ${score}`, 20, 30);
+                
+                // High score display
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillText(`HIGH: ${highScoreValue}`, 20, 60);
+                
+                // Difficulty indicator
+                let diffColor, diffText;
+                if (difficulty === 'easy') {
+                    diffColor = '#00ff00';
+                    diffText = 'EASY';
+                } else if (difficulty === 'medium') {
+                    diffColor = '#ffff00';
+                    diffText = 'MEDIUM';
+                } else {
+                    diffColor = '#ff0000';
+                    diffText = 'HARD';
+                }
+                
+                ctx.fillStyle = diffColor;
+                ctx.fillText(`DIFF: ${diffText}`, 20, 90);
+                
+                // Bird type indicator
+                let birdColor, birdText;
+                if (selectedBird === 1) {
+                    birdColor = '#00fffc';
+                    birdText = 'STANDARD';
+                } else if (selectedBird === 2) {
+                    birdColor = '#ff00ff';
+                    birdText = 'SPEED';
+                } else {
+                    birdColor = '#5e00ff';
+                    birdText = 'TANK';
+                }
+                
+                ctx.fillStyle = birdColor;
+                ctx.fillText(`BIRD: ${birdText}`, 20, 120);
+            }
+            
+            // Main game loop
+            let lastTime = 0;
+            function gameLoop(timestamp) {
+                if (!gameRunning) return;
+                
+                const deltaTime = timestamp - lastTime;
+                lastTime = timestamp;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Update game state
+                bird.velocity += bird.gravity;
+                bird.y += bird.velocity;
+                
+                updatePipes();
+                updateParticles();
+                checkCollision();
+                
+                // Draw everything
+                drawBackground();
+                drawPipes();
+                drawBird();
+                drawParticles();
+                drawHUD();
+                
+                // Continue game loop
+                requestAnimationFrame(gameLoop);
+            }
+            
+            // Initial terminal animation
+            const terminalMessages = [
+                "> SYSTEM BOOTING...",
+                "> LOADING NEON GRAPHICS...",
+                "> INITIALIZING GRAVITY ENGINE...",
+                "> CALIBRATING PIPE GENERATOR...",
+                "> READY FOR USER INPUT"
+            ];
+            
+            let currentMessage = 0;
+            const terminalInterval = setInterval(() => {
+                if (currentMessage < terminalMessages.length) {
+                    terminalOutput.textContent = terminalMessages[currentMessage];
+                    currentMessage++;
+                } else {
+                    clearInterval(terminalInterval);
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
